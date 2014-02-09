@@ -1,3 +1,4 @@
 1. Do we really need a 218 X 21764 matrix ? How to make it more efficient
 2. How do we write a binary classifier ? 
-2. What is word_feature_centered ? What is word_feature_std ? 
+3. What is word_feature_centered ? What is word_feature_std ? 
+4. Deliverables for the 24th ? 
