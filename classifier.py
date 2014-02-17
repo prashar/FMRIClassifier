@@ -3,6 +3,8 @@ from scipy import *
 from numpy import linalg as LA
 from matplotlib import pyplot as plt
 import scipy.io as io
+from scipy.sparse import *
+from time import *
 
 # The whole classifier is a class .. It will be easy to import ..
 class FMRIWordClassifier:
@@ -16,26 +18,37 @@ class FMRIWordClassifier:
         self.MAX_RR = 50
         self.sf = 1
         self.precision = .001
-        self.lamb = 30
+        self.lamb = 50
 
         # Fill up all of the above ..
         self.read_data()
 
-    def setup_for_lasso(self):
-        # Setup to Solve Lasso
+    def setup_for_lasso(self,lamb):
+
+        # Setup to Solve Lasso - add the extra term w)
         w_init = zeros(21764+1)
+
+        # The word id numbers range from 1 to 60 - we need to subtract by 1 to get the id from wfs
+        # Y_L is actually not going to just be the ID, it'll be the entire 218 vector representing that word
         Y_L = [self.wfs[i-1] for i in self.wordid_train[:,0]]
         Y = array(Y_L)
+
         # In order to append the 218x21764 vector
-        old = None
-        for i in range(0,2):
-            ans = self.solve_lasso(self.lamb,self.fmri_train,Y,300,21764,w_init)
-            print(shape(ans))
-            if i>0:
-                ans = append([old],[ans],axis=0)
-            old = ans
-        #ans = self.solve_lasso_insane(self.lamb,self.fmri_train,Y,300,21764,w_init)
-        print shape(ans)
+        final_weight_vector = zeros((218,21765))
+        for i in range(0,218):
+            t1 = time()
+            # This call will return 1()X21764 vector
+            weight_vector_i = self.solve_lasso(lamb,self.fmri_train,Y,300,21764,w_init,i)
+            final_weight_vector[i,:] = weight_vector_i
+            t2 = time()
+            print "took about: ", t2-t1
+        #print shape(final_weight_vector)
+
+        # Write to a file
+        # But, first convert to sparse format, ensure the precision and field is set
+        sparse_weight_vector = coo_matrix(final_weight_vector)
+        io.mmio.mmwrite('weight_vec{0}.out'.format(lamb),sparse_weight_vector,field='real',precision=25)
+        #sparse_weight_vector_fromdisk = io.mmio.mmread('weight_vec.out')
 
     # Read all the data in ..
     def read_data(self):
@@ -68,7 +81,7 @@ class FMRIWordClassifier:
     # provided to indicate the score for that feature. The final output will be
     # a 218 element array each filled with the score for the respective feature.
 
-    def solve_lasso(self,lamb,X,Y,N,d,init_w):
+    def solve_lasso(self,lamb,X,Y,N,d,init_w,y_idx):
 
         # Initialize the w to be 0
         w_tilde = copy(init_w) ;
@@ -91,7 +104,7 @@ class FMRIWordClassifier:
             w_prev = copy(w_tilde)
 
             for voxel_j in range(0,d):
-                c_j = 2 * X[:,voxel_j].dot(Y[:,0] -Xw + (X[:,voxel_j] * w_tilde[voxel_j+1]) - w_0)
+                c_j = 2 * X[:,voxel_j].dot(Y[:,y_idx] -Xw + (X[:,voxel_j] * w_tilde[voxel_j+1]) - w_0)
                 w_tilde_j_old = w_tilde[voxel_j+1]
                 if(c_j < (-1 * lamb)):
                     w_tilde[voxel_j+1] = (c_j + lamb)/a_j_pre[voxel_j]
@@ -101,7 +114,9 @@ class FMRIWordClassifier:
                     w_tilde[voxel_j+1] = 0
                 delta_w = w_tilde[voxel_j+1] - w_tilde_j_old
                 Xw += delta_w * X[:,voxel_j]
-            w_0 = sum(Y[:,0] - X.dot(w_tilde[1:]))/N
+
+            #Recalculate w_0
+            w_0 = sum(Y[:,y_idx] - X.dot(w_tilde[1:]))/N
             w_tilde[0] = w_0
             diff_w = w_tilde - w_prev
             new_error = max(abs(diff_w))
@@ -114,9 +129,78 @@ class FMRIWordClassifier:
         print("Not done after MAX Iterations - Exiting!")
         return w_tilde
 
+    def CalcSemanticFeatureVector(self,trainOrTest=1):
+        # Read the input weight_vector
+        weight_vector = io.mmio.mmread('weight_vec50.out.mtx')
+        weight_vector_dense = weight_vector.todense()
+        a = weight_vector_dense[:,1:]
+
+        # Need to add w_0 to the final answer
+        w_0 = weight_vector_dense[:,0]
+
+        # Get the list of candidate words - We'll pass this in to to the function
+        # that does L2 distance computation.
+        # 1 for trainOrTest implies TEST
+        if(trainOrTest == 1):
+            Y_L = [self.wfs[i-1] for i in self.wordid_test[:,0]]
+        else:
+            Y_L = [self.wfs[i-1] for i in self.wordid_train[:,0]]
+
+        Y = array(Y_L)
+
+        mistakes = 0
+
+        # Iterate over the total number of 60 words to see
+        # which word gives us the smallest L2 Dist from our
+        # computed semantic vector. The semantic vector
+        # gets computed within the loop/
+        if(trainOrTest == 1):
+            CompVector = self.fmri_test
+        else:
+            CompVector = self.fmri_train
+
+        for i in range(shape(CompVector)[0]):
+
+            # Test against one row at a time.
+            b = transpose(CompVector[i])
+
+            # Compute the semantic vector
+            semantic_vec = a.dot(b) + w_0
+
+            # Compare against all candidate words
+            if(self.CalculateL2DistAgainstTestSet(semantic_vec,Y,i)):
+                mistakes += 1
+        print "Total Mistakes: ", mistakes
+
+    # This routine returns the number of mistakes made against the Y.
+    def CalculateL2DistAgainstTestSet(self, semantic_vec, Y, expected_idx):
+
+        # Array that will keep L2 Distance between all the words
+        L2DistArray = zeros(shape(Y)[0])
+        idx=0
+        for candidate in Y:
+            dist = LA.norm(semantic_vec - candidate)
+            L2DistArray[idx] = dist
+            idx+=1
+
+        #print L2DistArray
+        indexSmallest = argmin(L2DistArray)
+        print "idx: ", indexSmallest," -- " ,L2DistArray[indexSmallest],"  | Expected: ", L2DistArray[expected_idx]
+        if(indexSmallest != expected_idx):
+            return True
+        # No Mistake
+        return False
+
 def main():
     classifier = FMRIWordClassifier()
-    classifier.setup_for_lasso()
+    '''
+    for i in [100,75,50]:
+        classifier.setup_for_lasso(i)
+        print "Done with lambda ", i
+    '''
+    # 0 to test on training samples(300), #1 to test on testing samples
+    classifier.CalcSemanticFeatureVector(0)
+
 
 if __name__ == '__main__':
     main()
