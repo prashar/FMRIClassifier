@@ -131,7 +131,7 @@ class FMRIWordClassifier:
 
     def CalcSemanticFeatureVector(self,trainOrTest=1):
         # Read the input weight_vector
-        weight_vector = io.mmio.mmread('weight_vec50.out.mtx')
+        weight_vector = io.mmio.mmread('weight_vec0.out.mtx')
         weight_vector_dense = weight_vector.todense()
         a = weight_vector_dense[:,1:]
 
@@ -198,8 +198,16 @@ def main():
         classifier.setup_for_lasso(i)
         print "Done with lambda ", i
     '''
+
+    # Run for lambda == 0
+    # This will store the a file named weight_vector0.out.mtx on your disk containing the resulting matrix
+    classifier.setup_for_lasso(0)
+
+
     # 0 to test on training samples(300), #1 to test on testing samples
-    classifier.CalcSemanticFeatureVector(0)
+    # You will need to uncomment this line to test out on the training set. It'll output the number of mistakes
+    # We expect 0 ..
+    # classifier.CalcSemanticFeatureVector(0)
 
 
 if __name__ == '__main__':
