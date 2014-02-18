@@ -6,6 +6,8 @@ import scipy.io as io
 from scipy.sparse import *
 from time import *
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import euclidean_distances
+from sklearn import linear_model
 
 # The whole classifier is a class .. It will be easy to import ..
 class FMRIWordClassifier:
@@ -16,7 +18,7 @@ class FMRIWordClassifier:
         self.wordid_test = None
         self.wfc = None
         self.wfs = None
-        self.MAX_RR = 50
+        self.MAX_RR = 200
         self.sf = 1
         self.precision = .001
         self.lamb = 50
@@ -130,12 +132,51 @@ class FMRIWordClassifier:
         print("Not done after MAX Iterations - Exiting!")
         return w_tilde
 
-    def CalcSemanticFeatureVector(self,trainOrTest=1):
+    def SolveFastLasso(self,trainOrTest=0,dist=0):
+        # Train
+        Y_L = [self.wfs[i-1] for i in self.wordid_train[:,0]]
+        Y = array(Y_L)
+        lasso = linear_model.Lasso(alpha=25.0)
+        lasso.fit(self.fmri_train,Y)
+
+        w_0 = lasso.intercept_
+        a = lasso.coef_
+        if(trainOrTest == 1):
+            Y_sol = self.wordid_test[:,0]
+        else:
+            Y_sol = self.wordid_train[:,0]
+
+        mistakes = 0
+        # Iterate over the total number of 60 words to see
+        # which word gives us the smallest L2 Dist from our
+        # computed semantic vector. The semantic vector
+        # gets computed within the loop/
+        if(trainOrTest == 1):
+            CompVector = self.fmri_test
+        else:
+            CompVector = self.fmri_train
+
+        for i in range(shape(CompVector)[0]):
+
+            # Test against one row at a time.
+            b = CompVector[i]
+
+            # Compute the semantic vector
+            semantic_vec = a.dot(b)
+            #print shape(semantic_vec)
+
+            semantic_vec += w_0
+
+            # Compare against all candidate words
+            if(self.CalculateL2DistAgainstTestSet(semantic_vec,Y_sol,i,dist)):
+                mistakes += 1
+        print "Total Mistakes: ", mistakes
+
+    def CalcSemanticFeatureVector(self,trainOrTest=1,fread='weight_vec0.out.mtx',dist=0):
         # Read the input weight_vector
-        weight_vector = io.mmio.mmread('weight_vec5.out.mtx')
+        weight_vector = io.mmio.mmread(fread)
         weight_vector_dense = weight_vector.todense()
         a = weight_vector_dense[:,1:]
-        print shape(a)
 
         # Need to add w_0 to the final answer
         w_0 = weight_vector_dense[:,0]
@@ -149,6 +190,7 @@ class FMRIWordClassifier:
             Y = self.wordid_train[:,0]
 
         mistakes = 0
+        print w_0
 
         # Iterate over the total number of 60 words to see
         # which word gives us the smallest L2 Dist from our
@@ -166,36 +208,41 @@ class FMRIWordClassifier:
 
             # Compute the semantic vector
             semantic_vec = a.dot(b)
-            print shape(semantic_vec)
+            #print shape(semantic_vec)
 
             semantic_vec += transpose(w_0)
 
             # Compare against all candidate words
-            if(self.CalculateL2DistAgainstTestSet(semantic_vec,Y,i)):
+            if(self.CalculateL2DistAgainstTestSet(semantic_vec,Y,i,dist)):
                 mistakes += 1
         print "Total Mistakes: ", mistakes
 
-    # This routine returns the number of mistakes made against the Y.
-    def CalculateL2DistAgainstTestSet(self, semantic_vec, Y, expected_idx):
+    # This routine measures the l2 or cosine difference between
+    # the semantic vector and all 60 words, and tries to guess a match
+    # based on the user preference for dist metric.
+    # dist = 0 is eucld, 1 is cosine
+    def CalculateL2DistAgainstTestSet(self, semantic_vec, Y, expected_idx, dist_metric=0):
 
-        # Array that will keep L2 Distance between all the 60 words
-        L2DistArray = zeros(60)
-        idx=0
-        for candidate in self.wfs:
-            dist = LA.norm(semantic_vec - candidate)
-            L2DistArray[idx] = dist
-            idx+=1
+        # Will hold the distance metric idx
+        compIndex = 0
 
-        #print L2DistArray
-        indexSmallest = argmin(L2DistArray)
+        l2dist = euclidean_distances(semantic_vec,self.wfs)
+        l2idx = argmin(l2dist)
+
         # Also compute the cosine similarity matrix - this one seems to give better results.
-        hx = cosine_similarity(semantic_vec,self.wfs)
-        cosidx = argmax(hx)
+        cossim = cosine_similarity(semantic_vec,self.wfs)
+        cosidx = argmax(cossim)
 
-        print "idx: ", indexSmallest," -- " ,L2DistArray[indexSmallest],"  | Expected: ", L2DistArray[Y[expected_idx]-1]
-        if(indexSmallest != (Y[expected_idx]-1)):
-            print "cosidx: " , cosidx, " exepected_idx: ", (Y[expected_idx]-1)
+        if(dist_metric == 0):
+            # L2 Distances
+            compIndex = l2idx
+        else:
+            compIndex = cosidx
+
+        print "Expected Word Index: ", Y[expected_idx]-1, " | CosIDX: ", cosidx, " | EucIdx", l2idx
+        if(compIndex != (Y[expected_idx]-1)):
             return True
+
         # No Mistake
         return False
 
@@ -209,14 +256,22 @@ def main():
 
     # Run for lambda == 0
     # This will store the a file named weight_vector0.out.mtx on your disk containing the resulting matrix
-    #classifier.setup_for_lasso(5)
+    #classifier.setup_for_lasso(0)
 
+    #classifier.SolveFastLasso(trainOrTest=0,dist=0)
 
     # 0 to test on training samples(300), #1 to test on testing samples
-    # You will need to uncomment this line to test out on the training set. It'll output the number of mistakes
-    # We expect 0 ..
-    classifier.CalcSemanticFeatureVector(1)
+    # dist == 0 for l2, dist == 1 for cosine
+    #classifier.CalcSemanticFeatureVector(trainOrTest=0,fread='weight_vec25.out.mtx',dist=1)
 
+    X = array([[0,0],[1,1],[2,2]])
+    Y = array([[0],[1],[2]])
+    N = 3
+    d = 2
+    init_w = zeros(3)
+    y_idx=0
+    ret = classifier.solve_lasso(0.1,X,Y,N,d,init_w,y_idx)
+    print ret
 
 if __name__ == '__main__':
     main()
