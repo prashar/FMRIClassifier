@@ -7,6 +7,7 @@
 Sun/16th
 
 1. Given a set of voels, which of the voxels affect classifier predictions ? 
+1.1 Pearson correlation  & Cosine similarity
 
 
 2. Correlation distance / Cosine Distance ? 
