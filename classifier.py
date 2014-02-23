@@ -26,6 +26,28 @@ class FMRIWordClassifier:
         # Fill up all of the above ..
         self.read_data()
 
+    def setup_reverse_lasso(self,lamb):
+        w_init = zeros(218+1)
+        X_L = [self.wfs[i-1] for i in self.wordid_train[:,0]]
+        X = array(X_L)
+        final_weight_vector = zeros((21764,219))
+        for i in range(0,21764):
+            t1 = time()
+            # This call will return 1()X21764 vector
+            weight_vector_i = self.solve_lasso(lamb,X,self.fmri_train,300,218,w_init,i)
+            final_weight_vector[i,:] = weight_vector_i
+            t2 = time()
+            print "Iteration {0} took about: ".format(i), t2-t1
+        #print shape(final_weight_vector)
+
+        # Write to a file
+        # But, first convert to sparse format, ensure the precision and field is set
+        sparse_weight_vector = coo_matrix(final_weight_vector)
+        io.mmio.mmwrite('weight_vec_rev{0}.out'.format(lamb),sparse_weight_vector,field='real',precision=25)
+        #sparse_weight_vector_fromdisk = io.mmio.mmread('weight_vec.out')
+
+
+
     def setup_for_lasso(self,lamb):
 
         # Setup to Solve Lasso - add the extra term w)
@@ -35,13 +57,15 @@ class FMRIWordClassifier:
         # Y_L is actually not going to just be the ID, it'll be the entire 218 vector representing that word
         Y_L = [self.wfs[i-1] for i in self.wordid_train[:,0]]
         Y = array(Y_L)
+        #io.mmio.mmwrite('y_out_wfs_train.out',Y,field='real',precision=25)
+
 
         # In order to append the 218x21764 vector
         final_weight_vector = zeros((218,21765))
         for i in range(0,218):
             t1 = time()
             # This call will return 1()X21764 vector
-            weight_vector_i = self.solve_lasso(lamb,self.fmri_train,Y,300,21764,w_init,i)
+            weight_vector_i = self.solve_lasso(lamb,self.fmri_train,Y,240,21764,w_init,i)
             final_weight_vector[i,:] = weight_vector_i
             t2 = time()
             print "Iteration {0} took about: ".format(i), t2-t1
@@ -50,25 +74,29 @@ class FMRIWordClassifier:
         # Write to a file
         # But, first convert to sparse format, ensure the precision and field is set
         sparse_weight_vector = coo_matrix(final_weight_vector)
-        io.mmio.mmwrite('weight_vec{0}.out'.format(lamb),sparse_weight_vector,field='real',precision=25)
+        io.mmio.mmwrite('new_weight_vec{0}.out'.format(lamb),sparse_weight_vector,field='real',precision=25)
         #sparse_weight_vector_fromdisk = io.mmio.mmread('weight_vec.out')
 
     # Read all the data in ..
     def read_data(self):
 
         # 300 X 21764
-        self.fmri_train = io.mmio.mmread("fmri/subject1_fmri_std.train.mtx")
+        self.fmri_train = io.mmio.mmread("fmri_train_240.out.mtx")
         # 60 X 21764
-        self.fmri_test = io.mmio.mmread("fmri/subject1_fmri_std.test.mtx")
+        self.fmri_test = io.mmio.mmread("fmri_train_60.out.mtx")
 
         # NOT WORKING - Reading as regular txt
         #self.wordid_train = io.mmio.mmread("fmri/subject1_wordid.train.mtx")
         # 300 X 1
-        self.wordid_train = loadtxt("fmri/subject1_wordid.train.mtx",dtype=int)
-        self.wordid_train = self.wordid_train.reshape((300,1))
+        #self.wordid_train = loadtxt("fmri/subject1_wordid.train.mtx",dtype=int)
+        #self.wordid_train = self.wordid_train.reshape((300,1))
+        self.wordid_train = io.mmio.mmread("wordid_train_240.out.mtx")
+
+        self.wordid_test = io.mmio.mmread("wordid_train_60.out.mtx")
+
 
         # 60 X 2
-        self.wordid_test = io.mmio.mmread("fmri/subject1_wordid.test.mtx")
+        #self.wordid_test = io.mmio.mmread("fmri/subject1_wordid.test.mtx")
 
         # 60 X 218
         self.wfc = io.mmio.mmread("fmri/word_feature_centered.mtx")
@@ -177,9 +205,20 @@ class FMRIWordClassifier:
         weight_vector = io.mmio.mmread(fread)
         weight_vector_dense = weight_vector.todense()
         a = weight_vector_dense[:,1:]
-
+        '''
+        b = array(weight_vector_dense[0,1:])
+        print shape(b)
+        print "Nonzero elements", nonzero(b)[1]
+        cnt = shape(nonzero(b))[1]
+        arr = zeros(cnt)
+        for i in range(cnt):
+            arr[i] = b[nonzero(b)[0][i], nonzero(b)[1][i]]
+        print arr
+        '''
         # Need to add w_0 to the final answer
         w_0 = weight_vector_dense[:,0]
+        #print w_0
+        #return
 
         # Get the list of candidate words - We'll pass this in to to the function
         # that does L2 distance computation.
@@ -190,7 +229,7 @@ class FMRIWordClassifier:
             Y = self.wordid_train[:,0]
 
         mistakes = 0
-        print w_0
+        #print w_0
 
         # Iterate over the total number of 60 words to see
         # which word gives us the smallest L2 Dist from our
@@ -249,21 +288,23 @@ class FMRIWordClassifier:
 def main():
     classifier = FMRIWordClassifier()
     '''
-    for i in [100,75,50]:
+    for i in [30,35,40,0]:
         classifier.setup_for_lasso(i)
         print "Done with lambda ", i
     '''
-
     # Run for lambda == 0
     # This will store the a file named weight_vector0.out.mtx on your disk containing the resulting matrix
-    #classifier.setup_for_lasso(0)
+    #classifier.setup_for_lasso(50)
+    #classifier.setup_reverse_lasso(25)
+
 
     #classifier.SolveFastLasso(trainOrTest=0,dist=0)
 
     # 0 to test on training samples(300), #1 to test on testing samples
     # dist == 0 for l2, dist == 1 for cosine
-    #classifier.CalcSemanticFeatureVector(trainOrTest=0,fread='weight_vec25.out.mtx',dist=1)
+    classifier.CalcSemanticFeatureVector(trainOrTest=0,fread='new_weight_vec50.out.mtx',dist=1)
 
+'''
     X = array([[0,0],[1,1],[2,2]])
     Y = array([[0],[1],[2]])
     N = 3
@@ -272,6 +313,6 @@ def main():
     y_idx=0
     ret = classifier.solve_lasso(0.1,X,Y,N,d,init_w,y_idx)
     print ret
-
+'''
 if __name__ == '__main__':
     main()
