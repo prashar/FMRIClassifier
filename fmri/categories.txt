@@ -1,12 +1,12 @@
-animals: bear,cat,cow,dog,horse
-bodyparts: arm,eye,foot,hand,leg
-buildings: apartment,barn,church,house,igloo
-buildingparts: arch,chimney,closet,door,window
-clothing: coat,dress,pants,shirt,skirt
-furniture: bed,chair,desk,dresser,table
-insects:ant,bee,beetle,butterfly,fly
-kitchen:bottle,cup,glass,knife,spoon
-manmade:bell,key,refrigerator,telephone,watch
-tools:chisel,hammer,pliers,saw,screwdriver
-vegetables:carrot,celery,corn,lettuce,tomato
-vehicles:airplane,bicycle,car,train,truck
+bear,cat,cow,dog,horse
+arm,eye,foot,hand,leg
+apartment,barn,church,house,igloo
+arch,chimney,closet,door,window
+coat,dress,pants,shirt,skirt
+bed,chair,desk,dresser,table
+ant,bee,beetle,butterfly,fly
+bottle,cup,glass,knife,spoon
+bell,key,refrigerator,telephone,watch
+chisel,hammer,pliers,saw,screwdriver
+carrot,celery,corn,lettuce,tomato
+airplane,bicycle,car,train,truck
