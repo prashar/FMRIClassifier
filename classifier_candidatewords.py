@@ -83,7 +83,8 @@ class FMRIWordClassifier:
     def read_data(self):
 
         # 300 X 21764
-        self.fmri_train = io.mmio.mmread("fmri/subject1_fmri_std.train.mtx")
+        #self.fmri_train = io.mmio.mmread("fmri/subject1_fmri_std.train.mtx")
+        self.fmri_train = io.mmio.mmread("fmri/fmri_train_240.out.mtx")
         # 60 X 21764
         self.fmri_test = io.mmio.mmread("fmri/subject1_fmri_std.test.mtx")
 
@@ -311,12 +312,16 @@ class FMRIWordClassifier:
         plt.show()
 
     def PlotPCA(self):
-        pca = RandomizedPCA(n_components=21764)
+        pca = RandomizedPCA(n_components=1)
         print shape(self.fmri_train)
         pca.fit(self.fmri_train)
+        print shape(pca.components_)
+        trainingVector = pca.fit_transform(self.fmri_train)
         plt.plot(pca.explained_variance_ratio_)
         plt.show()
-        print pca.get_params()
+        #print pca.get_params()
+        print shape(trainingVector)
+        io.mmwrite('fmri_train_240samples_1components.out', trainingVector, field='real', precision=25)
 
 def main():
     classifier = FMRIWordClassifier()
