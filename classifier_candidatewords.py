@@ -8,6 +8,8 @@ from time import *
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics.pairwise import euclidean_distances
 from sklearn import linear_model
+from sklearn.decomposition import PCA
+from sklearn.decomposition import RandomizedPCA
 
 # The whole classifier is a class .. It will be easy to import ..
 class FMRIWordClassifier:
@@ -304,9 +306,17 @@ class FMRIWordClassifier:
         return False
 
     def PlotSVD(self):
-        U,S,V = linalg.svd(self.fmri_train,full_matrices=0)
+        U,S,V = linalg.svd(self.fmri_train,full_matrices=1)
         plt.plot(S)
         plt.show()
+
+    def PlotPCA(self):
+        pca = RandomizedPCA(n_components=21764)
+        print shape(self.fmri_train)
+        pca.fit(self.fmri_train)
+        plt.plot(pca.explained_variance_ratio_)
+        plt.show()
+        print pca.get_params()
 
 def main():
     classifier = FMRIWordClassifier()
@@ -327,7 +337,7 @@ def main():
     # dist == 0 for l2, dist == 1 for cosine
     #classifier.CalcSemanticFeatureVector(trainOrTest=0,fread='new_weight_vec70.out.mtx',dist=1)
     #classifier.CalcSemanticFeatureVector(trainOrTest=0,fread='new_Fweight_vec10.out.mtx',dist=1)
-    classifier.PlotSVD()
+    classifier.PlotPCA()
 
 '''
     X = array([[0,0],[1,1],[2,2]])
