@@ -153,6 +153,7 @@ class FMRIWordClassifier:
 
     # Solve Ridge Regression for a particular semantic vector y_idx
     def solve_ridge(self,lamb,X,Y,y_idx,w_init):
+        print 'lambda used {0}'.format(lamb)
         clf = Ridge(alpha=lamb) 
         clf.fit(X,Y[:,y_idx])
         print shape(clf.coef_)
@@ -345,13 +346,14 @@ def main():
     #classifier.setup_for_lasso(5)
     #classifier.setup_reverse_lasso(25)
    
-
-    classifier.setup_for_ridge(10,300)
+    param = 200
+    classifier.setup_for_ridge(param,300)
+    fname = 'pca_weight_vec{0}.out'.format(param)  
     #classifier.setup_for_lasso(1,15)
     # 0 to test on training samples(300), #1 to test on testing samples
     # dist == 0 for l2, dist == 1 for cosine
     #classifier.CalcSemanticFeatureVector(trainOrTest=1,fread='lasso_pca_weight_vec1.out.mtx',dist=1)
-    classifier.CalcSemanticFeatureVector(trainOrTest=1,fread='pca_weight_vec10.out',dist=1)
+    classifier.CalcSemanticFeatureVector(trainOrTest=1,fread=fname,dist=1)
 
 
     #classifier.SolveFastLasso(trainOrTest=0,dist=0)
