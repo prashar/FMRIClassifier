@@ -81,23 +81,23 @@ class FMRIWordClassifier:
     def read_data(self):
 
         # 300 X 21764
-        self.fmri_train = io.mmio.mmread("fmri/fmri_train_240.out.mtx")
+        self.fmri_train = io.mmio.mmread("fmri/subject1_fmri_std.train.mtx")
         # 60 X 21764
-        self.fmri_test = io.mmio.mmread("fmri/fmri_train_60.out.mtx")
+        self.fmri_test = io.mmio.mmread("fmri/subject1_fmri_std.test.mtx")
 
         # NOT WORKING - Reading as regular txt
         #self.wordid_train = io.mmio.mmread("fmri/subject1_wordid.train.mtx")
         # 300 X 1
-        #self.wordid_train = loadtxt("fmri/subject1_wordid.train.mtx",dtype=int)
-        #self.wordid_train = self.wordid_train.reshape((300,1))
-        self.wordid_train = io.mmio.mmread("fmri/wordid_train_240.out.mtx")
+        self.wordid_train = loadtxt("fmri/subject1_wordid.train.mtx",dtype=int)
+        self.wordid_train = self.wordid_train.reshape((300,1))
+        #self.wordid_train = io.mmio.mmread("fmri/wordid_train_240.out.mtx")
 
         #self.wordid_test = io.mmio.mmread("fmri/wordid_train_60.out.mtx")
-        self.wordid_test = io.mmio.mmread("fmri/wordid_60_2cand.out.mtx")
+        #self.wordid_test = io.mmio.mmread("fmri/wordid_60_2cand.out.mtx")
 
 
         # 60 X 2
-        #self.wordid_test = io.mmio.mmread("fmri/subject1_wordid.test.mtx")
+        self.wordid_test = io.mmio.mmread("fmri/subject1_wordid.test.mtx")
 
         # 60 X 218
         self.wfc = io.mmio.mmread("fmri/word_feature_centered.mtx")
@@ -303,6 +303,11 @@ class FMRIWordClassifier:
         # No Mistake
         return False
 
+    def PlotSVD(self):
+        U,S,V = linalg.svd(self.fmri_train,full_matrices=0)
+        plt.plot(S)
+        plt.show()
+
 def main():
     classifier = FMRIWordClassifier()
     '''
@@ -312,7 +317,7 @@ def main():
     '''
     # Run for lambda == 0
     # This will store the a file named weight_vector0.out.mtx on your disk containing the resulting matrix
-    classifier.setup_for_lasso(5)
+    #classifier.setup_for_lasso(5)
     #classifier.setup_reverse_lasso(25)
 
 
@@ -321,7 +326,8 @@ def main():
     # 0 to test on training samples(300), #1 to test on testing samples
     # dist == 0 for l2, dist == 1 for cosine
     #classifier.CalcSemanticFeatureVector(trainOrTest=0,fread='new_weight_vec70.out.mtx',dist=1)
-    classifier.CalcSemanticFeatureVector(trainOrTest=1,fread='new_weight_vec5.out.mtx',dist=1)
+    #classifier.CalcSemanticFeatureVector(trainOrTest=0,fread='new_Fweight_vec10.out.mtx',dist=1)
+    classifier.PlotSVD()
 
 '''
     X = array([[0,0],[1,1],[2,2]])
