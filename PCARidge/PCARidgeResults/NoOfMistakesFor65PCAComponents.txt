@@ -1,0 +1,16 @@
+Lambda = 5; Mistakes = 12 
+Lambda = 10; Mistakes = 12 
+Lambda = 15; Mistakes = 12 
+Lambda = 20; Mistakes = 12 
+Lambda = 25; Mistakes = 12 
+Lambda = 30; Mistakes = 12 
+Lambda = 40; Mistakes = 12 
+Lambda = 50; Mistakes = 12 
+Lambda = 60; Mistakes = 12 
+Lambda = 70; Mistakes = 12 
+Lambda = 80; Mistakes = 12 
+Lambda = 100; Mistakes = 12 
+Lambda = 120; Mistakes = 12 
+Lambda = 150; Mistakes = 12 
+Lambda = 180; Mistakes = 12 
+Lambda = 200; Mistakes = 12 
