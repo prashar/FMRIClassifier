@@ -1,7 +1,8 @@
-from numpy import * 
-from scipy.io import * 
+from numpy import *
+from scipy.io import *
 from scipy import ndimage
 
+# Write the gaussian smoothed data
 fmri_all = mmread("fmri/subject1_fmri_std.train.mtx")
 print shape(fmri_all)
 out_data = zeros((300,21764))

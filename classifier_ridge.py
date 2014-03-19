@@ -28,19 +28,19 @@ class FMRIWordClassifier:
 
         # Fill up all of the above ..
         self.read_data()
-    
+
     def SplitData(self,split,total_rows,col):
         fmri_train = self.fmri_all
         a = fmri_train
-        print shape(a)    
+        print shape(a)
         #a = random.random_integers(10,size=(300,10))
         split_val = split
         total = total_rows
         cols = col
         a_cop = zeros((split_val,cols))
-        a_idx = 0 
+        a_idx = 0
         b_cop = zeros((total-split_val,cols))
-        b_idx = 0 
+        b_idx = 0
         i=0
         while( i <= total_rows ):
           if((i%25) == 0 and  i > 20):
@@ -154,7 +154,7 @@ class FMRIWordClassifier:
     # Solve Ridge Regression for a particular semantic vector y_idx
     def solve_ridge(self,lamb,X,Y,y_idx,w_init):
         print 'lambda used {0}'.format(lamb)
-        clf = Ridge(alpha=lamb) 
+        clf = Ridge(alpha=lamb)
         clf.fit(X,Y[:,y_idx])
         print shape(clf.coef_)
         w_init[0] = clf.intercept_
@@ -331,6 +331,9 @@ class FMRIWordClassifier:
         print shape(self.fmri_train)
         pca.fit(self.fmri_train)
         plt.plot(pca.explained_variance_ratio_)
+        plt.xlabel("No:of Components")
+        plt.ylabel("Expected Variance Ratio")
+        plt.title("PCA-Expected Variance Ratio vs No:of Components")
         plt.show()
         print pca.get_params()
 
@@ -345,15 +348,34 @@ def main():
     # This will store the a file named weight_vector0.out.mtx on your disk containing the resulting matrix
     #classifier.setup_for_lasso(5)
     #classifier.setup_reverse_lasso(25)
-   
+
     param = 200
     classifier.setup_for_ridge(param,300)
-    fname = 'pca_weight_vec{0}.out'.format(param)  
+    fname = 'pca_weight_vec{0}.out'.format(param)
     #classifier.setup_for_lasso(1,15)
     # 0 to test on training samples(300), #1 to test on testing samples
     # dist == 0 for l2, dist == 1 for cosine
     #classifier.CalcSemanticFeatureVector(trainOrTest=1,fread='lasso_pca_weight_vec1.out.mtx',dist=1)
     classifier.CalcSemanticFeatureVector(trainOrTest=1,fread=fname,dist=1)
+
+#     pcaArray = array([300, 250, 200, 150, 100, 85, 65, 50, 40, 30, 25, 20, 15, 10, 5, 3, 2])
+#
+#     lambdaArray = array([5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 100, 120, 150, 180, 200])
+#
+#     for a in range(pcaArray.size):
+#         f = open("NoOfMistakesFor{0}PCAComponents.txt".format(pcaArray[a]), 'w')
+#         for b in range(lambdaArray.size):
+#             classifier = FMRIWordClassifier(pcaArray[a])
+#             lambdaRegularization = lambdaArray[b]
+#             classifier.setup_for_ridge(lambdaRegularization,pcaArray[a])
+#             fname = 'pca_weight_vec_{0}comp_{1}lambda.out'.format(pcaArray[a], lambdaRegularization)
+#             #classifier.setup_for_lasso(1,15)
+#             # 0 to test on training samples(300), #1 to test on testing samples
+#             # dist == 0 for l2, dist == 1 for cosine
+#             #classifier.CalcSemanticFeatureVector(trainOrTest=1,fread='lasso_pca_weight_vec1.out.mtx',dist=1)
+#             mistake = classifier.CalcSemanticFeatureVector(trainOrTest=1,fread=fname,dist=1)
+#             f.write("Lambda = {0}; Mistakes = {1} \n".format(lambdaRegularization, mistake))
+#             f.flush()
 
 
     #classifier.SolveFastLasso(trainOrTest=0,dist=0)
